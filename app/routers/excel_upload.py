@@ -11,7 +11,9 @@ router = APIRouter()
 
 
 def safe(val, default=0):
-    """Return default if val is NaN or None."""
+    """Return default if val is NaN/None. Handles duplicate columns (Series)."""
+    if isinstance(val, pd.Series):
+        val = val.iloc[0] if len(val) > 0 else default
     if val is None:
         return default
     try:
@@ -23,6 +25,8 @@ def safe(val, default=0):
 
 
 def safe_str(val, default=""):
+    if isinstance(val, pd.Series):
+        val = val.iloc[0] if len(val) > 0 else default
     if val is None or (isinstance(val, float) and math.isnan(val)):
         return default
     return str(val).strip()
@@ -40,13 +44,6 @@ async def upload_excel(
     year: int = Query(2025, ge=2000),
     db: Session = Depends(get_db),
 ):
-    """
-    Upload an Excel file with employee + attendance data.
-    Automatically:
-      1. Creates employees if they don't exist (matched by EMP CODE or NAME)
-      2. Calculates payroll with LOP deductions and OT additions
-      3. Returns full payroll summary
-    """
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Please upload an Excel file (.xlsx or .xls)")
 
@@ -56,7 +53,7 @@ async def upload_excel(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not read Excel file: {str(e)}")
 
-    # ── Find the header row (contains "NAME" or "BASIC") ─────────────────────
+    # Find header row containing NAME and BASIC
     header_row = None
     for i, row in df.iterrows():
         row_upper = [str(v).upper().strip() for v in row.values]
@@ -65,16 +62,24 @@ async def upload_excel(
             break
 
     if header_row is None:
-        raise HTTPException(status_code=400, detail="Could not find header row in Excel. Make sure it has NAME and BASIC columns.")
+        raise HTTPException(status_code=400, detail="Could not find header row. Make sure Excel has NAME and BASIC columns.")
 
-    # Set header and re-read data rows
-    df.columns = [str(v).strip().upper().replace("\n", " ").replace("  ", " ") for v in df.iloc[header_row]]
+    # Build column names — deduplicate by adding suffix
+    raw_cols = [str(v).strip().upper().replace("\n", " ").replace("  ", " ") for v in df.iloc[header_row]]
+    seen = {}
+    deduped_cols = []
+    for c in raw_cols:
+        if c in seen:
+            seen[c] += 1
+            deduped_cols.append(f"{c}_{seen[c]}")
+        else:
+            seen[c] = 0
+            deduped_cols.append(c)
+
+    df.columns = deduped_cols
     df = df.iloc[header_row + 1:].reset_index(drop=True)
-
-    # Drop completely empty rows
     df = df.dropna(how="all")
 
-    # ── Column mapping (flexible — handles your exact column names) ───────────
     def find_col(keywords):
         for col in df.columns:
             col_clean = col.upper().replace(" ", "").replace(".", "").replace("\n", "")
@@ -90,20 +95,18 @@ async def upload_excel(
     col_basic    = find_col(["BASIC"])
     col_da       = find_col(["DA"])
     col_hra      = find_col(["HRA"])
-    col_ot       = find_col(["OVERTIME", "OTDAYS", "OT"])
+    col_ot       = find_col(["OTDAYS", "OVERTIME"])
     col_lop      = find_col(["LOP"])
-    col_gross    = find_col(["FIXEDGROSS", "MONTHLYGROSS", "GROSSSALARY"])
     col_pt       = find_col(["PT"])
     col_loan     = find_col(["LOAN", "ADVANCE"])
     col_tds      = find_col(["TDS"])
-    col_leaves   = find_col(["LEAVES", "LEAVEINMONTH", "NOOFLEAVESI"])
     col_days     = find_col(["DAYSINMONTH", "NOOFDAYS"])
     col_perday   = find_col(["PERDAY", "PERDAYSALARY"])
 
     if not col_name:
-        raise HTTPException(status_code=400, detail="Could not find NAME column in Excel.")
+        raise HTTPException(status_code=400, detail="Could not find NAME column.")
     if not col_basic:
-        raise HTTPException(status_code=400, detail="Could not find BASIC column in Excel.")
+        raise HTTPException(status_code=400, detail="Could not find BASIC column.")
 
     results = []
     skipped = []
@@ -115,7 +118,7 @@ async def upload_excel(
         if not name or name.upper() in ["NAME", "TOTAL", "GRAND TOTAL", ""]:
             continue
 
-        basic       = float(safe(row.get(col_basic), 0))
+        basic = float(safe(row.get(col_basic), 0))
         if basic == 0:
             skipped.append({"name": name, "reason": "Basic salary is 0 or missing"})
             continue
@@ -133,25 +136,19 @@ async def upload_excel(
         manual_tds  = float(safe(row.get(col_tds), 0)) if col_tds else None
         days_in_month = float(safe(row.get(col_days), 30)) if col_days else 30
 
-        # Calculate per day rate if not given
         fixed_gross = basic + da + hra
         if per_day == 0 and days_in_month > 0:
             per_day = round(fixed_gross / days_in_month, 2)
 
-        # LOP deduction
         lop_deduction = round(per_day * lop_days, 2)
+        ot_amount     = round(per_day * ot_days, 2) if ot_days > 0 else 0
 
-        # OT addition
-        ot_amount = round(per_day * ot_days, 2) if ot_days > 0 else 0
-
-        # Adjusted basic after LOP
-        lop_ratio = lop_days / days_in_month if days_in_month > 0 else 0
+        lop_ratio      = lop_days / days_in_month if days_in_month > 0 else 0
         adjusted_basic = round(basic * (1 - lop_ratio), 2)
-        adjusted_hra   = round(hra * (1 - lop_ratio), 2)
-        adjusted_da    = round(da * (1 - lop_ratio), 2)
-        special        = adjusted_da  # treat DA as special allowance
+        adjusted_hra   = round(hra   * (1 - lop_ratio), 2)
+        adjusted_da    = round(da    * (1 - lop_ratio), 2)
 
-        # ── Find or create employee ───────────────────────────────────────────
+        # Find or create employee
         emp = None
         if emp_code:
             emp = db.query(Employee).filter(Employee.employee_code == emp_code).first()
@@ -177,32 +174,28 @@ async def upload_excel(
             db.flush()
             employees_added += 1
         else:
-            # Update salary if changed
             emp.basic = basic
-            emp.hra = hra
+            emp.hra   = hra
             emp.special_allowance = da
             if uan: emp.uan_number = uan
             if bank_name: emp.bank_name = bank_name
             employees_updated += 1
 
-        # ── Calculate payroll ─────────────────────────────────────────────────
         result = calculate_payroll(
             basic=adjusted_basic,
             hra=adjusted_hra,
-            special_allowance=special,
+            special_allowance=adjusted_da,
             lta=0,
             medical_allowance=0,
             other_allowances=ot_amount,
             tax_regime=emp.tax_regime,
         )
 
-        # Override TDS and PT if provided in Excel
-        tds_final = manual_tds if manual_tds is not None else result.tds_monthly
-        pt_final  = manual_pt if manual_pt is not None else result.professional_tax
-        total_ded = result.employee_pf + result.employee_esi + tds_final + pt_final + manual_loan
-        net_pay   = round(result.gross_salary - total_ded, 2)
+        tds_final   = manual_tds if manual_tds is not None else result.tds_monthly
+        pt_final    = manual_pt  if manual_pt  is not None else result.professional_tax
+        total_ded   = result.employee_pf + result.employee_esi + tds_final + pt_final + manual_loan
+        net_pay     = round(result.gross_salary - total_ded, 2)
 
-        # ── Upsert payroll run ────────────────────────────────────────────────
         existing = db.query(PayrollRun).filter(
             PayrollRun.employee_id == emp.id,
             PayrollRun.month == month,
@@ -213,7 +206,7 @@ async def upload_excel(
         run.gross_salary      = result.gross_salary
         run.basic             = adjusted_basic
         run.hra               = adjusted_hra
-        run.special_allowance = special
+        run.special_allowance = adjusted_da
         run.lta               = 0
         run.medical_allowance = 0
         run.other_allowances  = ot_amount
@@ -248,16 +241,9 @@ async def upload_excel(
             "loan_advance": manual_loan,
             "total_deductions": total_ded,
             "net_pay": net_pay,
-            "is_new": not existing,
         })
 
     db.commit()
-
-    total_gross    = sum(r["gross_salary"] for r in results)
-    total_net      = sum(r["net_pay"] for r in results)
-    total_ded      = sum(r["total_deductions"] for r in results)
-    total_pf       = sum(r["employee_pf"] for r in results)
-    total_er_pf    = sum(r["employer_pf"] for r in results)
 
     return {
         "status": "success",
@@ -268,11 +254,11 @@ async def upload_excel(
         "employees_processed": len(results),
         "skipped": skipped,
         "summary": {
-            "total_gross": round(total_gross, 2),
-            "total_deductions": round(total_ded, 2),
-            "total_net_pay": round(total_net, 2),
-            "total_employee_pf": round(total_pf, 2),
-            "total_employer_pf": round(total_er_pf, 2),
+            "total_gross": round(sum(r["gross_salary"] for r in results), 2),
+            "total_deductions": round(sum(r["total_deductions"] for r in results), 2),
+            "total_net_pay": round(sum(r["net_pay"] for r in results), 2),
+            "total_employee_pf": round(sum(r["employee_pf"] for r in results), 2),
+            "total_employer_pf": round(sum(r["employer_pf"] for r in results), 2),
         },
         "payroll_runs": results,
     }
@@ -280,21 +266,15 @@ async def upload_excel(
 
 @router.get("/template")
 def download_template():
-    """Returns the expected column structure for the Excel upload."""
     return {
         "required_columns": ["NAME", "BASIC"],
-        "optional_columns": [
-            "EMP CODE", "UAN NUMBERS", "BANK NAME",
-            "HRA", "DA", "PER DAY SALARY",
-            "NO. OF DAYS IN MONTH", "LOP", "OT DAYS",
-            "PT", "TDS", "LOAN/ADVANCE"
-        ],
+        "optional_columns": ["EMP CODE", "UAN NUMBERS", "BANK NAME", "HRA", "DA",
+                             "PER DAY SALARY", "NO. OF DAYS IN MONTH", "LOP", "OT DAYS",
+                             "PT", "TDS", "LOAN/ADVANCE"],
         "notes": [
-            "Column names are flexible — partial matches work",
-            "LOP days will automatically reduce salary",
-            "OT days will add to salary",
-            "TDS and PT from Excel will override auto-calculated values",
-            "Employees are matched by EMP CODE first, then NAME",
-            "New employees are created automatically",
+            "Duplicate column names are handled automatically",
+            "LOP days reduce salary proportionally",
+            "OT days add to salary",
+            "TDS and PT from Excel override auto-calculated values",
         ]
     }
