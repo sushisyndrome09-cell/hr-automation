@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PayrollIQ — India HR Payroll</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0f1117;
+    --ink2: #3a3d4a;
+    --muted: #8b8fa8;
+    --border: #e4e6ef;
+    --bg: #f7f8fc;
+    --card: #ffffff;
+    --green: #1a9e6e;
+    --green-light: #e6f7f1;
+    --amber: #c47d0e;
+    --amber-light: #fef3dc;
+    --red: #c0392b;
+    --red-light: #fdecea;
+    --blue: #2563eb;
+    --blue-light: #eff4ff;
+    --accent: #5b4cf5;
+    --accent-light: #f0eeff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; background: var(--ink); color: #fff; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; }
+  .logo { padding: 24px 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .logo-title { font-family: 'DM Serif Display', serif; font-size: 22px; letter-spacing: -0.5px; }
+  .logo-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .nav { padding: 16px 12px; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 2px; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+  .nav-item.active { background: var(--accent); color: #fff; }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12px; color: rgba(255,255,255,0.3); }
+
+  /* ── Main ── */
+  .main { margin-left: 220px; flex: 1; padding: 32px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-title { font-family: 'DM Serif Display', serif; font-size: 28px; margin-bottom: 4px; }
+  .page-sub { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+
+  /* ── Metric cards ── */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .metric { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); }
+  .metric-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .metric-val { font-size: 24px; font-weight: 600; }
+  .metric-val.green { color: var(--green); }
+  .metric-val.amber { color: var(--amber); }
+  .metric-val.blue { color: var(--blue); }
+
+  /* ── Card ── */
+  .card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+  .card-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-title { font-size: 15px; font-weight: 600; }
+  .card-body { padding: 24px; }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); background: var(--bg); }
+  td { padding: 13px 16px; border-bottom: 1px solid var(--border); color: var(--ink); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbff; }
+
+  /* ── Badges ── */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge.green { background: var(--green-light); color: var(--green); }
+  .badge.amber { background: var(--amber-light); color: var(--amber); }
+  .badge.blue { background: var(--blue-light); color: var(--blue); }
+  .badge.red { background: var(--red-light); color: var(--red); }
+
+  /* ── Buttons ── */
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; font-family: inherit; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #4a3be0; }
+  .btn-secondary { background: var(--card); color: var(--ink); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--bg); }
+  .btn-green { background: var(--green); color: #fff; }
+  .btn-green:hover { background: #158a5e; }
+  .btn-danger { background: var(--red-light); color: var(--red); }
+  .btn-danger:hover { background: #fbd5d2; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  /* ── Form ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12.5px; font-weight: 500; color: var(--ink2); }
+  .field input, .field select { padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 13.5px; font-family: inherit; color: var(--ink); background: var(--card); transition: border 0.15s; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,76,245,0.1); }
+  .section-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 20px 0 12px; }
+
+  /* ── Payslip ── */
+  .payslip { background: #fff; border-radius: 12px; border: 1px solid var(--border); padding: 40px; max-width: 720px; }
+  .payslip-top { display: flex; justify-content: space-between; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid var(--ink); }
+  .company { font-family: 'DM Serif Display', serif; font-size: 22px; }
+  .payslip-period { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .emp-info { font-size: 13px; text-align: right; }
+  .emp-info strong { display: block; font-size: 15px; margin-bottom: 4px; }
+  .ps-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 20px; }
+  .ps-section h4 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 10px; }
+  .ps-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .ps-row:last-child { border-bottom: none; }
+  .net-row { display: flex; justify-content: space-between; align-items: center; background: var(--ink); color: #fff; border-radius: 10px; padding: 16px 20px; margin-top: 16px; }
+  .net-label { font-size: 14px; font-weight: 500; }
+  .net-amount { font-size: 22px; font-weight: 600; }
+
+  /* ── Compliance ── */
+  .compliance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .comp-card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 20px; }
+  .comp-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap-8px; }
+  .comp-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .comp-row:last-child { border-bottom: none; }
+  .comp-row .lbl { color: var(--muted); }
+  .comp-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 600; padding-top: 12px; margin-top: 4px; }
+
+  /* ── Modal ── */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(15,17,23,0.5); z-index: 200; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #fff; border-radius: 16px; padding: 32px; width: 640px; max-height: 90vh; overflow-y: auto; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 22px; }
+  .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); line-height: 1; }
+  .modal-footer { margin-top: 24px; display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* ── Toast ── */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: #fff; padding: 14px 20px; border-radius: 10px; font-size: 13.5px; display: none; z-index: 999; animation: slideup 0.3s ease; }
+  .toast.show { display: block; }
+  .toast.success { background: var(--green); }
+  .toast.error { background: var(--red); }
+  @keyframes slideup { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* ── Loading ── */
+  .loading { text-align: center; padding: 48px; color: var(--muted); font-size: 14px; }
+  .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 48px; color: var(--muted); }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+  .text-right { text-align: right; }
+  .fw600 { font-weight: 600; }
+  .green-text { color: var(--green); }
+  .red-text { color: var(--red); }
+  .row-actions { display: flex; gap: 6px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-title">PayrollIQ</div>
+      <div class="logo-sub">India HR System</div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Dashboard</button>
+      <button class="nav-item" onclick="showPage('employees')"><span class="nav-icon">👥</span> Employees</button>
+      <button class="nav-item" onclick="showPage('payroll')"><span class="nav-icon">💰</span> Run Payroll</button>
+      <button class="nav-item" onclick="showPage('payslips')"><span class="nav-icon">🧾</span> Payslips</button>
+      <button class="nav-item" onclick="showPage('compliance')"><span class="nav-icon">📋</span> Compliance</button>
+      <button class="nav-item" onclick="showPage('calculator')"><span class="nav-icon">🧮</span> Calculator</button>
+    </nav>
+    <div class="sidebar-footer">PayrollIQ v1.0 · India</div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">Overview of your payroll for this month</div>
+      <div class="metrics" id="dash-metrics">
+        <div class="loading"><div class="spinner"></div>Loading...</div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Payroll Runs</span>
+          <button class="btn btn-primary btn-sm" onclick="showPage('payroll')">▶ Run Payroll</button>
+        </div>
+        <div class="card-body" id="dash-recent">
+          <div class="loading"><div class="spinner"></div>Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMPLOYEES -->
+    <div id="page-employees" class="page">
+      <div class="page-title">Employees</div>
+      <div class="page-sub">Manage your employee register</div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="openAddEmployee()">+ Add Employee</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th><th>Name</th><th>Designation</th><th>Department</th>
+                <th>Basic</th><th>Gross</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="emp-table-body">
+              <tr><td colspan="8"><div class="loading"><div class="spinner"></div>Loading...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYROLL -->
+    <div id="page-payroll" class="page">
+      <div class="page-title">Run Payroll</div>
+      <div class="page-sub">Process monthly payroll for all active employees</div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Select Period</span></div>
+        <div class="card-body">
+          <div class="form-grid" style="max-width:400px;margin-bottom:20px">
+            <div class="field">
+              <label>Month</label>
+              <select id="run-month">
+                <option value="1">January</option><option value="2">February</option>
+                <option value="3">March</option><option value="4">April</option>
+                <option value="5" selected>May</option><option value="6">June</option>
+                <option value="7">July</option><option value="8">August</option>
+                <option value="9">September</option><option value="10">October</option>
+                <option value="11">November</option><option value="12">December</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Year</label>
+              <select id="run-year">
+                <option value="2024">2024</option>
+                <option value="2025" selected>2025</option>
+                <option value="2026">2026</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-green" onclick="runPayroll()">▶ Process Payroll</button>
+        </div>
+      </div>
+      <div id="payroll-result" style="display:none">
+        <div class="metrics" id="payroll-metrics"></div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Payroll Breakdown</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Employee</th><th>Gross</th><th>PF</th><th>ESI</th><th>TDS</th><th>PT</th><th>Net Pay</th></tr>
+              </thead>
+              <tbody id="payroll-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYSLIPS -->
+    <div id="page-payslips" class="page">
+      <div class="page-title">Payslips</div>
+      <div class="page-sub">View and download employee payslips</div>
+      <div class="card">
+        <div class="card-body">
+          <div class="form-grid" style="max-width:560px;margin-bottom:20px">
+            <div class="field">
+              <label>Employee</label>
+              <select id="ps-emp"></select>
+            </div>
+            <div class="field">
+              <label>Month</label>
+              <select id="ps-month">
+                <option value="1">January</option><option value="2">February</option>
+                <option value="3">March</option><option value="4">April</option>
+                <option value="5" selected>May</option><option value="6">June</option>
+                <option value="7">July</option><option value="8">August</option>
+                <option value="9">September</option><option value="10">October</option>
+                <option value="11">November</option><option value="12">December</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Year</label>
+              <select id="ps-year">
+                <option value="2024">2024</option>
+                <option value="2025" selected>2025</option>
+                <option value="2026">2026</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="loadPayslip()">View Payslip</button>
+        </div>
+      </div>
+      <div id="payslip-container"></div>
+    </div>
+
+    <!-- COMPLIANCE -->
+    <div id="page-compliance" class="page">
+      <div class="page-title">Compliance Reports</div>
+      <div class="page-sub">PF, ESI and TDS statutory reports</div>
+      <div style="display:flex;gap:10px;margin-bottom:20px;align-items:flex-end">
+        <div class="field"><label>Month</label>
+          <select id="comp-month">
+            <option value="1">January</option><option value="2">February</option>
+            <option value="3">March</option><option value="4">April</option>
+            <option value="5" selected>May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option>
+            <option value="9">September</option><option value="10">October</option>
+            <option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+        <div class="field"><label>Year</label>
+          <select id="comp-year">
+            <option value="2024">2024</option><option value="2025" selected>2025</option><option value="2026">2026</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="loadCompliance()">Load Report</button>
+      </div>
+      <div id="compliance-result"></div>
+    </div>
+
+    <!-- CALCULATOR -->
+    <div id="page-calculator" class="page">
+      <div class="page-title">Salary Calculator</div>
+      <div class="page-sub">Calculate take-home pay instantly — no data saved</div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Enter Salary Components (Monthly ₹)</span></div>
+        <div class="card-body">
+          <div class="form-grid three">
+            <div class="field"><label>Basic</label><input type="number" id="c-basic" value="40000" oninput="calcSalary()" /></div>
+            <div class="field"><label>HRA</label><input type="number" id="c-hra" value="16000" oninput="calcSalary()" /></div>
+            <div class="field"><label>Special Allowance</label><input type="number" id="c-special" value="10000" oninput="calcSalary()" /></div>
+            <div class="field"><label>LTA</label><input type="number" id="c-lta" value="3000" oninput="calcSalary()" /></div>
+            <div class="field"><label>Medical Allowance</label><input type="number" id="c-medical" value="1250" oninput="calcSalary()" /></div>
+            <div class="field"><label>Other Allowances</label><input type="number" id="c-other" value="0" oninput="calcSalary()" /></div>
+          </div>
+          <div class="divider"></div>
+          <div class="field" style="max-width:200px">
+            <label>Tax Regime</label>
+            <select id="c-regime" onchange="calcSalary()">
+              <option value="new">New Regime</option>
+              <option value="old">Old Regime</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="calc-result" style="display:none">
+        <div class="card-header"><span class="card-title">Salary Breakdown</span></div>
+        <div class="card-body" id="calc-breakdown"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Add Employee Modal -->
+<div class="modal-bg" id="emp-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New Employee</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="section-label">Personal Details</div>
+    <div class="form-grid">
+      <div class="field"><label>Full Name *</label><input type="text" id="f-name" placeholder="Ravi Kumar" /></div>
+      <div class="field"><label>Email</label><input type="email" id="f-email" placeholder="ravi@company.com" /></div>
+      <div class="field"><label>Phone</label><input type="text" id="f-phone" placeholder="9876543210" /></div>
+      <div class="field"><label>PAN Number</label><input type="text" id="f-pan" placeholder="ABCPR1234Z" /></div>
+      <div class="field"><label>Date of Joining</label><input type="date" id="f-doj" /></div>
+      <div class="field"><label>Date of Birth</label><input type="date" id="f-dob" /></div>
+    </div>
+    <div class="section-label">Job Details</div>
+    <div class="form-grid">
+      <div class="field"><label>Designation</label><input type="text" id="f-desig" placeholder="Software Engineer" /></div>
+      <div class="field"><label>Department</label><input type="text" id="f-dept" placeholder="Engineering" /></div>
+      <div class="field"><label>Tax Regime</label>
+        <select id="f-regime"><option value="new">New Regime</option><option value="old">Old Regime</option></select>
+      </div>
+    </div>
+    <div class="section-label">Salary Components (Monthly ₹)</div>
+    <div class="form-grid three">
+      <div class="field"><label>Basic *</label><input type="number" id="f-basic" placeholder="35000" /></div>
+      <div class="field"><label>HRA</label><input type="number" id="f-hra" placeholder="14000" /></div>
+      <div class="field"><label>Special Allowance</label><input type="number" id="f-special" placeholder="8000" /></div>
+      <div class="field"><label>LTA</label><input type="number" id="f-lta" placeholder="2000" /></div>
+      <div class="field"><label>Medical Allowance</label><input type="number" id="f-medical" placeholder="1250" /></div>
+      <div class="field"><label>Other Allowances</label><input type="number" id="f-other" placeholder="0" /></div>
+    </div>
+    <div class="section-label">Bank Details</div>
+    <div class="form-grid">
+      <div class="field"><label>Bank Name</label><input type="text" id="f-bank" placeholder="HDFC Bank" /></div>
+      <div class="field"><label>Account Number</label><input type="text" id="f-acc" placeholder="1234567890" /></div>
+      <div class="field"><label>IFSC Code</label><input type="text" id="f-ifsc" placeholder="HDFC0001234" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEmployee()">Save Employee</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG — Change this to your Render URL ──────────────────────────────────
+const API = 'https://hr-payroll-qbqh.onrender.com';
+
+const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
+const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'employees') loadEmployees();
+  if (name === 'payslips') loadEmpDropdown();
+  if (name === 'calculator') calcSalary();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ── API helper ────────────────────────────────────────────────────────────────
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Request failed');
+  }
+  return res.json();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const emps = await api('/api/employees/');
+    let summary;
+    try { summary = await api('/api/payroll/summary?month=5&year=2025'); } catch(e) { summary = null; }
+
+    document.getElementById('dash-metrics').innerHTML = `
+      <div class="metric"><div class="metric-label">Total Employees</div><div class="metric-val blue">${emps.length}</div></div>
+      <div class="metric"><div class="metric-label">Monthly Gross</div><div class="metric-val green">${summary ? fmt(summary.total_gross) : '—'}</div></div>
+      <div class="metric"><div class="metric-label">Total Net Pay</div><div class="metric-val green">${summary ? fmt(summary.total_net_pay) : '—'}</div></div>
+      <div class="metric"><div class="metric-label">Total Deductions</div><div class="metric-val amber">${summary ? fmt(summary.total_employee_deductions) : '—'}</div></div>
+      <div class="metric"><div class="metric-label">Employer PF</div><div class="metric-val">${summary ? fmt(summary.total_employer_pf) : '—'}</div></div>
+      <div class="metric"><div class="metric-label">Total TDS</div><div class="metric-val amber">${summary ? fmt(summary.total_tds) : '—'}</div></div>
+    `;
+
+    if (summary) {
+      const rows = summary.payroll_runs.slice(0, 6).map(r => `
+        <tr>
+          <td><strong>${r.employee_name}</strong></td>
+          <td>${fmt(r.gross_salary)}</td>
+          <td class="red-text">-${fmt(r.total_deductions)}</td>
+          <td class="green-text fw600">${fmt(r.net_pay)}</td>
+          <td><span class="badge green">Processed</span></td>
+        </tr>`).join('');
+      document.getElementById('dash-recent').innerHTML = `
+        <table><thead><tr><th>Employee</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody></table>`;
+    } else {
+      document.getElementById('dash-recent').innerHTML = '<div class="empty"><div class="empty-icon">📭</div>No payroll run yet. Go to Run Payroll to process.</div>';
+    }
+  } catch(e) {
+    document.getElementById('dash-metrics').innerHTML = `<div class="empty">Could not connect to server. Make sure the backend is running.</div>`;
+  }
+}
+
+// ── Employees ─────────────────────────────────────────────────────────────────
+async function loadEmployees() {
+  try {
+    const emps = await api('/api/employees/');
+    if (!emps.length) {
+      document.getElementById('emp-table-body').innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">👥</div>No employees yet. Add your first employee!</div></td></tr>';
+      return;
+    }
+    document.getElementById('emp-table-body').innerHTML = emps.map(e => {
+      const gross = e.basic + e.hra + e.special_allowance + e.lta + e.medical_allowance + e.other_allowances;
+      return `<tr>
+        <td><span style="font-family:monospace;font-size:12px;color:var(--muted)">${e.employee_code}</span></td>
+        <td><strong>${e.name}</strong></td>
+        <td>${e.designation || '—'}</td>
+        <td>${e.department || '—'}</td>
+        <td>${fmt(e.basic)}</td>
+        <td>${fmt(gross)}</td>
+        <td><span class="badge ${e.status === 'active' ? 'green' : 'amber'}">${e.status}</span></td>
+        <td><div class="row-actions">
+          <button class="btn btn-secondary btn-sm" onclick="viewSalary(${e.id})">Preview</button>
+          <button class="btn btn-danger btn-sm" onclick="terminateEmp(${e.id}, '${e.name}')">Remove</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('emp-table-body').innerHTML = `<tr><td colspan="8"><div class="empty">Error loading employees: ${e.message}</div></td></tr>`;
+  }
+}
+
+async function viewSalary(id) {
+  try {
+    const d = await api(`/api/employees/${id}/salary-preview`);
+    toast(`${d.name}: Gross ${fmt(d.gross_salary)} → Net ${fmt(d.net_pay)}`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function terminateEmp(id, name) {
+  if (!confirm(`Remove ${name} from active employees?`)) return;
+  try {
+    await api(`/api/employees/${id}`, 'DELETE');
+    toast(`${name} removed`, 'success');
+    loadEmployees();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Add Employee Modal ────────────────────────────────────────────────────────
+function openAddEmployee() {
+  document.getElementById('emp-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('emp-modal').classList.remove('open');
+}
+async function saveEmployee() {
+  const name = document.getElementById('f-name').value.trim();
+  const basic = parseFloat(document.getElementById('f-basic').value);
+  if (!name) { toast('Name is required', 'error'); return; }
+  if (!basic) { toast('Basic salary is required', 'error'); return; }
+
+  const payload = {
+    name,
+    email: document.getElementById('f-email').value || undefined,
+    phone: document.getElementById('f-phone').value || undefined,
+    pan_number: document.getElementById('f-pan').value || undefined,
+    date_of_joining: document.getElementById('f-doj').value || undefined,
+    date_of_birth: document.getElementById('f-dob').value || undefined,
+    designation: document.getElementById('f-desig').value || undefined,
+    department: document.getElementById('f-dept').value || undefined,
+    tax_regime: document.getElementById('f-regime').value,
+    basic,
+    hra: parseFloat(document.getElementById('f-hra').value) || 0,
+    special_allowance: parseFloat(document.getElementById('f-special').value) || 0,
+    lta: parseFloat(document.getElementById('f-lta').value) || 0,
+    medical_allowance: parseFloat(document.getElementById('f-medical').value) || 0,
+    other_allowances: parseFloat(document.getElementById('f-other').value) || 0,
+    bank_name: document.getElementById('f-bank').value || undefined,
+    bank_account: document.getElementById('f-acc').value || undefined,
+    bank_ifsc: document.getElementById('f-ifsc').value || undefined,
+  };
+
+  try {
+    await api('/api/employees/', 'POST', payload);
+    toast(`${name} added successfully!`, 'success');
+    closeModal();
+    loadEmployees();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Run Payroll ───────────────────────────────────────────────────────────────
+async function runPayroll() {
+  const month = +document.getElementById('run-month').value;
+  const year = +document.getElementById('run-year').value;
+  toast('Processing payroll...');
+  try {
+    const data = await api('/api/payroll/run', 'POST', { month, year });
+    document.getElementById('payroll-result').style.display = 'block';
+    document.getElementById('payroll-metrics').innerHTML = `
+      <div class="metric"><div class="metric-label">Employees</div><div class="metric-val blue">${data.total_employees}</div></div>
+      <div class="metric"><div class="metric-label">Total Gross</div><div class="metric-val green">${fmt(data.total_gross)}</div></div>
+      <div class="metric"><div class="metric-label">Total Net Pay</div><div class="metric-val green">${fmt(data.total_net_pay)}</div></div>
+      <div class="metric"><div class="metric-label">Deductions</div><div class="metric-val amber">${fmt(data.total_employee_deductions)}</div></div>
+      <div class="metric"><div class="metric-label">Employer PF</div><div class="metric-val">${fmt(data.total_employer_pf)}</div></div>
+      <div class="metric"><div class="metric-label">TDS</div><div class="metric-val amber">${fmt(data.total_tds)}</div></div>
+    `;
+    document.getElementById('payroll-table').innerHTML = data.payroll_runs.map(r => `
+      <tr>
+        <td><strong>${r.employee_name}</strong></td>
+        <td>${fmt(r.gross_salary)}</td>
+        <td>${fmt(r.employee_pf)}</td>
+        <td>${r.esi_applicable ? fmt(r.employee_esi) : '<span style="color:var(--muted);font-size:12px">N/A</span>'}</td>
+        <td>${r.tds > 0 ? fmt(r.tds) : '<span style="color:var(--muted);font-size:12px">Nil</span>'}</td>
+        <td>${fmt(r.professional_tax)}</td>
+        <td class="green-text fw600">${fmt(r.net_pay)}</td>
+      </tr>`).join('');
+    toast(`Payroll processed for ${MONTHS[month]} ${year}!`, 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Payslips ──────────────────────────────────────────────────────────────────
+async function loadEmpDropdown() {
+  try {
+    const emps = await api('/api/employees/');
+    document.getElementById('ps-emp').innerHTML = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+  } catch(e) {}
+}
+
+async function loadPayslip() {
+  const empId = document.getElementById('ps-emp').value;
+  const month = document.getElementById('ps-month').value;
+  const year = document.getElementById('ps-year').value;
+  try {
+    const d = await api(`/api/payslip/${empId}?month=${month}&year=${year}`);
+    const e = d.employee;
+    const earn = d.earnings;
+    const ded = d.deductions;
+    document.getElementById('payslip-container').innerHTML = `
+      <div class="payslip">
+        <div class="payslip-top">
+          <div>
+            <div class="company">Your Company</div>
+            <div class="payslip-period">Payslip for ${d.payslip.period}</div>
+          </div>
+          <div class="emp-info">
+            <strong>${e.name}</strong>
+            ${e.employee_code} · ${e.designation || ''}<br>
+            ${e.department || ''}<br>
+            PAN: ${e.pan_number || 'N/A'}
+          </div>
+        </div>
+        <div class="ps-two-col">
+          <div class="ps-section">
+            <h4>Earnings</h4>
+            <div class="ps-row"><span>Basic Salary</span><span>${fmt(earn.basic)}</span></div>
+            <div class="ps-row"><span>HRA</span><span>${fmt(earn.hra)}</span></div>
+            <div class="ps-row"><span>Special Allowance</span><span>${fmt(earn.special_allowance)}</span></div>
+            <div class="ps-row"><span>LTA</span><span>${fmt(earn.lta)}</span></div>
+            <div class="ps-row"><span>Medical Allowance</span><span>${fmt(earn.medical_allowance)}</span></div>
+            ${earn.other_allowances > 0 ? `<div class="ps-row"><span>Other</span><span>${fmt(earn.other_allowances)}</span></div>` : ''}
+            <div class="ps-row fw600"><span>Gross Total</span><span>${fmt(earn.gross_salary)}</span></div>
+          </div>
+          <div class="ps-section">
+            <h4>Deductions</h4>
+            <div class="ps-row"><span>Employee PF</span><span class="red-text">- ${fmt(ded.employee_pf)}</span></div>
+            <div class="ps-row"><span>ESI</span><span class="red-text">${d.esi_applicable ? '- '+fmt(ded.employee_esi) : 'Not applicable'}</span></div>
+            <div class="ps-row"><span>TDS (Sec 192)</span><span class="red-text">${ded.tds > 0 ? '- '+fmt(ded.tds) : 'Nil'}</span></div>
+            <div class="ps-row"><span>Professional Tax</span><span class="red-text">- ${fmt(ded.professional_tax)}</span></div>
+            <div class="ps-row fw600"><span>Total Deductions</span><span class="red-text">- ${fmt(ded.total_deductions)}</span></div>
+          </div>
+        </div>
+        <div class="net-row">
+          <div class="net-label">Net Take-Home Pay</div>
+          <div class="net-amount">${fmt(d.net_pay)}</div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted);text-align:center">${d.in_words}</div>
+      </div>`;
+    toast('Payslip loaded!', 'success');
+  } catch(e) { toast(e.message, 'error'); document.getElementById('payslip-container').innerHTML = ''; }
+}
+
+// ── Compliance ────────────────────────────────────────────────────────────────
+async function loadCompliance() {
+  const month = document.getElementById('comp-month').value;
+  const year = document.getElementById('comp-year').value;
+  try {
+    const [summary, pf, esi, tds] = await Promise.all([
+      api(`/api/compliance/summary?month=${month}&year=${year}`),
+      api(`/api/compliance/pf-report?month=${month}&year=${year}`),
+      api(`/api/compliance/esi-report?month=${month}&year=${year}`),
+      api(`/api/compliance/tds-report?month=${month}&year=${year}`),
+    ]);
+    document.getElementById('compliance-result').innerHTML = `
+      <div class="compliance-grid">
+        <div class="comp-card">
+          <h4>🏦 Provident Fund (PF)</h4>
+          <div class="comp-row"><span class="lbl">Employee PF</span><span>${fmt(pf.total_employee_pf)}</span></div>
+          <div class="comp-row"><span class="lbl">Employer PF</span><span>${fmt(pf.total_employer_pf)}</span></div>
+          <div class="comp-row"><span class="lbl">Due Date</span><span>${pf.due_date}</span></div>
+          <div class="comp-total"><span>Total Remittance</span><span class="blue" style="color:var(--blue)">${fmt(pf.total_remittance)}</span></div>
+        </div>
+        <div class="comp-card">
+          <h4>🏥 ESI</h4>
+          <div class="comp-row"><span class="lbl">Eligible Employees</span><span>${esi.eligible_employees || 0}</span></div>
+          <div class="comp-row"><span class="lbl">Employee ESI</span><span>${fmt(summary.total_esi_remittance / 2 || 0)}</span></div>
+          <div class="comp-row"><span class="lbl">Due Date</span><span>${pf.due_date}</span></div>
+          <div class="comp-total"><span>Total Remittance</span><span style="color:var(--blue)">${fmt(summary.total_esi_remittance)}</span></div>
+        </div>
+        <div class="comp-card">
+          <h4>🧾 TDS (Section 192)</h4>
+          <div class="comp-row"><span class="lbl">Total TDS Deducted</span><span>${fmt(tds.total_tds)}</span></div>
+          <div class="comp-row"><span class="lbl">Form</span><span>${tds.form}</span></div>
+          <div class="comp-row"><span class="lbl">Due Date</span><span>${tds.due_date}</span></div>
+          <div class="comp-total"><span>Deposit to IT Dept</span><span style="color:var(--blue)">${fmt(tds.total_tds)}</span></div>
+        </div>
+        <div class="comp-card">
+          <h4>📅 Filing Calendar</h4>
+          <div class="comp-row"><span class="lbl">PF & ESI</span><span>15th of next month</span></div>
+          <div class="comp-row"><span class="lbl">TDS Deposit</span><span>7th of next month</span></div>
+          <div class="comp-row"><span class="lbl">Form 24Q (Q1)</span><span>31st July</span></div>
+          <div class="comp-row"><span class="lbl">Form 16 to employees</span><span>15th June</span></div>
+          <div class="comp-total"><span>Total Liability</span><span style="color:var(--blue)">${fmt(summary.total_pf_remittance + summary.total_esi_remittance + summary.total_tds_deposit)}</span></div>
+        </div>
+      </div>`;
+    toast('Compliance report loaded!', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Salary Calculator ─────────────────────────────────────────────────────────
+async function calcSalary() {
+  const payload = {
+    basic: +document.getElementById('c-basic').value || 0,
+    hra: +document.getElementById('c-hra').value || 0,
+    special_allowance: +document.getElementById('c-special').value || 0,
+    lta: +document.getElementById('c-lta').value || 0,
+    medical_allowance: +document.getElementById('c-medical').value || 0,
+    other_allowances: +document.getElementById('c-other').value || 0,
+    tax_regime: document.getElementById('c-regime').value,
+  };
+  try {
+    const d = await api('/api/payroll/calculate', 'POST', payload);
+    document.getElementById('calc-result').style.display = 'block';
+    document.getElementById('calc-breakdown').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
+        <div>
+          <div class="section-label">Earnings</div>
+          <div class="ps-row"><span>Basic</span><span>${fmt(payload.basic)}</span></div>
+          <div class="ps-row"><span>HRA</span><span>${fmt(payload.hra)}</span></div>
+          <div class="ps-row"><span>Special Allowance</span><span>${fmt(payload.special_allowance)}</span></div>
+          <div class="ps-row"><span>LTA</span><span>${fmt(payload.lta)}</span></div>
+          <div class="ps-row"><span>Medical</span><span>${fmt(payload.medical_allowance)}</span></div>
+          <div class="ps-row fw600"><span>Gross Salary</span><span>${fmt(d.gross_salary)}</span></div>
+        </div>
+        <div>
+          <div class="section-label">Deductions</div>
+          <div class="ps-row"><span>Employee PF</span><span class="red-text">- ${fmt(d.employee_pf)}</span></div>
+          <div class="ps-row"><span>Employer PF (CTC)</span><span style="color:var(--muted)">+ ${fmt(d.employer_pf)}</span></div>
+          <div class="ps-row"><span>ESI</span><span>${d.esi_applicable ? '<span class="red-text">- '+fmt(d.employee_esi)+'</span>' : '<span style="color:var(--muted)">N/A</span>'}</span></div>
+          <div class="ps-row"><span>TDS (monthly)</span><span class="red-text">${d.tds_monthly > 0 ? '- '+fmt(d.tds_monthly) : 'Nil'}</span></div>
+          <div class="ps-row fw600"><span>Total Deductions</span><span class="red-text">- ${fmt(d.total_deductions)}</span></div>
+        </div>
+      </div>
+      <div class="net-row" style="margin-top:20px">
+        <div>
+          <div class="net-label">Net Take-Home Pay</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px">CTC: ${fmt(d.ctc)}/month · Annual Tax: ${fmt(d.annual_tax)}</div>
+        </div>
+        <div class="net-amount">${fmt(d.net_pay)}</div>
+      </div>`;
+  } catch(e) {}
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadDashboard();
+</script>
+</body>
+</html>
