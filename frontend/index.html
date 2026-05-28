@@ -169,6 +169,7 @@
       <button class="nav-item" onclick="showPage('payslips')"><span class="nav-icon">🧾</span> Payslips</button>
       <button class="nav-item" onclick="showPage('compliance')"><span class="nav-icon">📋</span> Compliance</button>
       <button class="nav-item" onclick="showPage('calculator')"><span class="nav-icon">🧮</span> Calculator</button>
+      <button class="nav-item" onclick="showPage('excel')"><span class="nav-icon">📂</span> Excel Upload</button>
     </nav>
     <div class="sidebar-footer">PayrollIQ v1.0 · India</div>
   </aside>
@@ -358,6 +359,78 @@
       </div>
     </div>
 
+    <!-- EXCEL UPLOAD -->
+    <div id="page-excel" class="page">
+      <div class="page-title">Excel Upload</div>
+      <div class="page-sub">Upload your payroll Excel file to add employees and process payroll at once</div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">Select Period & Upload File</span></div>
+        <div class="card-body">
+          <div class="form-grid" style="max-width:500px;margin-bottom:20px">
+            <div class="field">
+              <label>Month</label>
+              <select id="xl-month">
+                <option value="1">January</option><option value="2">February</option>
+                <option value="3">March</option><option value="4">April</option>
+                <option value="5" selected>May</option><option value="6">June</option>
+                <option value="7">July</option><option value="8">August</option>
+                <option value="9">September</option><option value="10">October</option>
+                <option value="11">November</option><option value="12">December</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Year</label>
+              <select id="xl-year">
+                <option value="2024">2024</option>
+                <option value="2025" selected>2025</option>
+                <option value="2026">2026</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Drop zone -->
+          <div id="drop-zone" style="border:2px dashed var(--border);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:16px"
+            onclick="document.getElementById('xl-file').click()"
+            ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='var(--accent-light)'"
+            ondragleave="this.style.borderColor='var(--border)';this.style.background=''"
+            ondrop="handleDrop(event)">
+            <div style="font-size:40px;margin-bottom:12px">📊</div>
+            <div style="font-size:15px;font-weight:500;margin-bottom:6px">Click to choose your Excel file</div>
+            <div style="font-size:13px;color:var(--muted)">or drag and drop here · .xlsx or .xls files only</div>
+            <div id="xl-filename" style="margin-top:12px;font-size:13px;color:var(--accent);font-weight:500"></div>
+          </div>
+          <input type="file" id="xl-file" accept=".xlsx,.xls" style="display:none" onchange="fileSelected(this)" />
+
+          <div style="background:var(--amber-light);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--amber);margin-bottom:16px">
+            <strong>Your Excel columns detected:</strong> SL.NO, EMP CODE, UAN NUMBERS, NAME, MONTHLY GROSS, PER DAY SALARY, BANK NAME, BASIC, DA, HRA, LOP, OT DAYS, PF, ESI, PT, TDS, LOAN/ADVANCE, NET SALARY
+          </div>
+
+          <button class="btn btn-green" onclick="uploadExcel()" id="xl-btn" disabled>📂 Upload & Process Payroll</button>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div id="xl-result" style="display:none">
+        <div class="metrics" id="xl-metrics"></div>
+        <div class="card">
+          <div class="card-header"><span class="card-title" id="xl-result-title">Payroll Results</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Code</th><th>Name</th><th>Basic</th><th>LOP Days</th><th>OT Days</th><th>Gross</th><th>PF</th><th>TDS</th><th>Net Pay</th></tr>
+              </thead>
+              <tbody id="xl-table"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="xl-skipped" style="display:none" class="card">
+          <div class="card-header"><span class="card-title" style="color:var(--amber)">⚠️ Skipped Rows</span></div>
+          <div class="card-body" id="xl-skipped-body"></div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -412,7 +485,7 @@
 
 <script>
 // ── CONFIG — Change this to your Render URL ──────────────────────────────────
-const API = 'https://hr-payroll-qbqh.onrender.com';
+const API = 'http://127.0.0.1:8000';
 
 const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
 const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -752,6 +825,104 @@ async function calcSalary() {
         <div class="net-amount">${fmt(d.net_pay)}</div>
       </div>`;
   } catch(e) {}
+}
+
+// ── Excel Upload ──────────────────────────────────────────────────────────────
+let selectedFile = null;
+
+function fileSelected(input) {
+  if (input.files && input.files[0]) {
+    selectedFile = input.files[0];
+    document.getElementById('xl-filename').textContent = '✅ ' + selectedFile.name;
+    document.getElementById('xl-btn').disabled = false;
+    document.getElementById('drop-zone').style.borderColor = 'var(--green)';
+    document.getElementById('drop-zone').style.background = 'var(--green-light)';
+  }
+}
+
+function handleDrop(event) {
+  event.preventDefault();
+  document.getElementById('drop-zone').style.borderColor = 'var(--border)';
+  document.getElementById('drop-zone').style.background = '';
+  const file = event.dataTransfer.files[0];
+  if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+    selectedFile = file;
+    document.getElementById('xl-filename').textContent = '✅ ' + file.name;
+    document.getElementById('xl-btn').disabled = false;
+    document.getElementById('drop-zone').style.borderColor = 'var(--green)';
+    document.getElementById('drop-zone').style.background = 'var(--green-light)';
+  } else {
+    toast('Please upload an .xlsx or .xls file', 'error');
+  }
+}
+
+async function uploadExcel() {
+  if (!selectedFile) { toast('Please select an Excel file first', 'error'); return; }
+
+  const month = document.getElementById('xl-month').value;
+  const year  = document.getElementById('xl-year').value;
+  const btn   = document.getElementById('xl-btn');
+
+  btn.textContent = '⏳ Processing...';
+  btn.disabled = true;
+  toast('Uploading and processing your Excel file...');
+
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+
+  try {
+    const res = await fetch(`${API}/api/excel/upload?month=${month}&year=${year}`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Upload failed');
+    }
+    const data = await res.json();
+
+    // Show metrics
+    document.getElementById('xl-result').style.display = 'block';
+    document.getElementById('xl-result-title').textContent = `Payroll Results — ${MONTHS[+month]} ${year}`;
+    document.getElementById('xl-metrics').innerHTML = `
+      <div class="metric"><div class="metric-label">Employees Processed</div><div class="metric-val blue">${data.employees_processed}</div></div>
+      <div class="metric"><div class="metric-label">New Employees Added</div><div class="metric-val green">${data.employees_added}</div></div>
+      <div class="metric"><div class="metric-label">Total Gross</div><div class="metric-val green">${fmt(data.summary.total_gross)}</div></div>
+      <div class="metric"><div class="metric-label">Total Net Pay</div><div class="metric-val green">${fmt(data.summary.total_net_pay)}</div></div>
+      <div class="metric"><div class="metric-label">Total PF</div><div class="metric-val">${fmt(data.summary.total_employee_pf)}</div></div>
+      <div class="metric"><div class="metric-label">Total Deductions</div><div class="metric-val amber">${fmt(data.summary.total_deductions)}</div></div>
+    `;
+
+    // Show table
+    document.getElementById('xl-table').innerHTML = data.payroll_runs.map(r => `
+      <tr>
+        <td style="font-family:monospace;font-size:12px;color:var(--muted)">${r.employee_code}</td>
+        <td><strong>${r.name}</strong></td>
+        <td>${fmt(r.basic)}</td>
+        <td>${r.lop_days > 0 ? '<span class="badge red">'+r.lop_days+' days</span>' : '<span style="color:var(--muted)">—</span>'}</td>
+        <td>${r.ot_days > 0 ? '<span class="badge green">'+r.ot_days+' days</span>' : '<span style="color:var(--muted)">—</span>'}</td>
+        <td>${fmt(r.gross_salary)}</td>
+        <td>${fmt(r.employee_pf)}</td>
+        <td>${r.tds > 0 ? fmt(r.tds) : '<span style="color:var(--muted)">Nil</span>'}</td>
+        <td class="green-text fw600">${fmt(r.net_pay)}</td>
+      </tr>`).join('');
+
+    // Show skipped
+    if (data.skipped && data.skipped.length > 0) {
+      document.getElementById('xl-skipped').style.display = 'block';
+      document.getElementById('xl-skipped-body').innerHTML = data.skipped.map(s =>
+        `<div style="padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+          <strong>${s.name}</strong> — <span style="color:var(--amber)">${s.reason}</span>
+        </div>`).join('');
+    }
+
+    toast(`✅ ${data.employees_processed} employees processed successfully!`, 'success');
+  } catch(e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.textContent = '📂 Upload & Process Payroll';
+    btn.disabled = false;
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
